@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>গ্যালারি অ্যাপ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(45deg, #ff9a9e, #fad0c4);
+      text-align: center;
+      color: white;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      margin: 20px 0;
+    }
+    .album-container {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .album {
+      width: 150px;
+      height: 150px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+    .album:hover {
+      transform: scale(1.1);
+    }
+    .media-viewer {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .media-viewer img,
+    .media-viewer video {
+      max-width: 80%;
+      max-height: 80%;
+    }
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 30px;
+      cursor: pointer;
+      color: white;
+    }
+    .gallery {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .gallery img, .gallery video {
+      width: 150px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .gallery img:hover, .gallery video:hover {
+      transform: scale(1.05);
+    }
+    .album-gallery-container {
+      margin: 20px;
+    }
+    .album-header {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      margin: 20px;
+    }
+    .album-header h2 {
+      margin: 0;
+    }
+    .album-header button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 5px;
+      background: #28a745;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .album-header button:hover {
+      background: #218838;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📸 আমার গ্যালারি</h1>
+  
+  <div class="album-container">
+    <!-- প্রি-ডিফাইন্ড অ্যালবাম: শুরুতে পাসওয়ার্ড ফাঁকা -->
+    <div class="album" onclick="unlockAlbum('album1')">
+      <h2>পরিবার</h2>
+    </div>
+    <div class="album" onclick="unlockAlbum('album2')">
+      <h2>বন্ধুরা</h2>
+    </div>
+    <div class="album" onclick="unlockAlbum('album3')">
+      <h2>ভ্রমণ</h2>
+    </div>
+    <!-- মোবাইল অ্যালবাম: সরাসরি ফাইল ইনপুটের মাধ্যমে মিডিয়া দেখানো হবে -->
+    <div class="album" onclick="openMobileGallery()">
+      <h2>মোবাইল</h2>
+    </div>
+  </div>
+  
+  <!-- হিডেন ফাইল ইনপুট: মোবাইলের ছবি ও ভিডিও সিলেক্ট করার জন্য -->
+  <input type="file" id="mobileFilesInput" accept="image/*,video/*" multiple style="display: none;">
+  <!-- হিডেন ফাইল ইনপুট: প্রতিটি অ্যালবামে ছবি ইনপুট করার জন্য -->
+  <input type="file" id="albumFilesInput" accept="image/*" multiple style="display: none;">
+  
+  <!-- Enlarged view (ছবি/ভিডিও) দেখানোর জন্য Modal -->
+  <div id="viewer" class="media-viewer">
+    <span onclick="closeViewer()" class="close-btn">&times;</span>
+    <img id="viewerImg" src="" alt="মিডিয়া" style="display: none;">
+    <video id="viewerVideo" controls style="display: none;"></video>
+  </div>
+  
+  <script>
+    /* প্রতিটি অ্যালবামের তথ্য; শুরুতে পাসওয়ার্ড ফাঁকা */
+    const albums = {
+      "album1": { password: "", images: [] },
+      "album2": { password: "", images: [] },
+      "album3": { password: "", images: [] }
+    };
+    
+    let currentAlbumKey = null;
+    
+    // অ্যালবাম আনলক বা পাসওয়ার্ড সেট/রিসেট করার ফাংশন
+    function unlockAlbum(albumKey) {
+      currentAlbumKey = albumKey;
+      // যদি পাসওয়ার্ড এখনও সেট না থাকে, তাহলে সেট করার জন্য জিজ্ঞাসা করা হবে
+      if (albums[albumKey].password === "") {
+        let setNow = confirm("এই অ্যালবামে এখনও পাসওয়ার্ড সেট করা নেই। আপনি কি এখন পাসওয়ার্ড সেট করতে চান?");
+        if (setNow) {
+          let newPass = prompt("নতুন পাসওয়ার্ড দিন:");
+          if (newPass && newPass.trim() !== "") {
+            albums[albumKey].password = newPass;
+            alert("পাসওয়ার্ড সেট হয়েছে!");
+          } else {
+            alert("অকার্যকর পাসওয়ার্ড।");
+            return;
+          }
+        } else {
+          alert("অ্যালবাম লক করার জন্য পাসওয়ার্ড আবশ্যক।");
+          return;
+        }
+      } else {
+        // যদি পাসওয়ার্ড আগে থেকেই সেট থাকে, তাহলে পাসওয়ার্ড ইনপুটের সাথে "ফরগেট" অপশন যোগ করা হয়েছে
+        let userPass = prompt("অ্যালবামের পাসওয়ার্ড দিন (যদি ভুলে যান 'ফরগেট' লিখুন):");
+        if (userPass === null) return; // যদি ক্যান্সেল করেন
+        if (userPass.trim().toLowerCase() === "ফরগেট") {
+          // ফরগেট পাসওয়ার্ড: কনফার্ম করলে নতুন পাসওয়ার্ড সেট করা যাবে
+          if (confirm("আপনি কি নিশ্চিতভাবে পাসওয়ার্ড রিসেট করতে চান?")) {
+            let newPass = prompt("নতুন পাসওয়ার্ড দিন:");
+            if (newPass && newPass.trim() !== "") {
+              albums[albumKey].password = newPass;
+              alert("নতুন পাসওয়ার্ড সেট হয়েছে!");
+              showAlbum(albums[albumKey].images);
+            } else {
+              alert("অকার্যকর পাসওয়ার্ড!");
+            }
+          }
+          return;
+        }
+        if (userPass !== albums[albumKey].password) {
+          alert("ভুল পাসওয়ার্ড!");
+          return;
+        }
+      }
+      showAlbum(albums[albumKey].images);
+    }
+    
+    // উন্মুক্ত অ্যালবামের ছবি গ্যালারি দেখানোর ফাংশন
+    function showAlbum(images) {
+      // পূর্বের অ্যালবাম/গ্যালারি থাকলে সরিয়ে ফেলা
+      const oldContainer = document.querySelector(".album-gallery-container");
+      if (oldContainer) oldContainer.remove();
+    
+      let container = document.createElement("div");
+      container.classList.add("album-gallery-container");
+      
+      // হেডার: অ্যালবামের নাম এবং বোতামসমূহ (পাসওয়ার্ড পরিবর্তন ও ছবি যুক্ত করুন)
+      let header = document.createElement("div");
+      header.classList.add("album-header");
+      header.innerHTML = `<h2>অ্যালবাম: ${currentAlbumKey}</h2>`;
+      
+      let changePassBtn = document.createElement("button");
+      changePassBtn.textContent = "পাসওয়ার্ড পরিবর্তন করুন";
+      changePassBtn.onclick = changePassword;
+      header.appendChild(changePassBtn);
+      
+      let addImageBtn = document.createElement("button");
+      addImageBtn.textContent = "ছবি যুক্ত করুন";
+      addImageBtn.onclick = addImagesToAlbum;
+      header.appendChild(addImageBtn);
+      
+      container.appendChild(header);
+    
+      let gallery = document.createElement("div");
+      gallery.classList.add("gallery");
+      
+      images.forEach(img => {
+        let imageElem = document.createElement("img");
+        imageElem.src = img;
+        imageElem.alt = "গ্যালারি ছবি";
+        imageElem.onclick = () => viewMedia(img, 'image');
+        gallery.appendChild(imageElem);
+      });
+      
+      container.appendChild(gallery);
+      
+      document.body.appendChild(container);
+      container.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // পাসওয়ার্ড পরিবর্তনের ফাংশন (অ্যালবাম উন্মুক্ত অবস্থায়)
+    function changePassword() {
+      if (!currentAlbumKey) return;
+      let currentPass = prompt("বর্তমান পাসওয়ার্ড দিন:");
+      if (currentPass !== albums[currentAlbumKey].password) {
+        alert("ভুল বর্তমান পাসওয়ার্ড!");
+        return;
+      }
+      let newPass = prompt("নতুন পাসওয়ার্ড দিন:");
+      if (newPass && newPass.trim() !== "") {
+        albums[currentAlbumKey].password = newPass;
+        alert("পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে!");
+      } else {
+        alert("অকার্যকর পাসওয়ার্ড!");
+      }
+    }
+    
+    // অ্যালবামে ছবি যুক্ত করার জন্য ফাইল ইনপুট ট্রিগার করার ফাংশন
+    function addImagesToAlbum() {
+      document.getElementById("albumFilesInput").click();
+    }
+    
+    // 'albumFilesInput'-এর ইভেন্ট লিসেনার: নির্বাচিত ছবাগুলোকে বর্তমান অ্যালবামের গ্যালারিতে যুক্ত করা হবে
+    document.getElementById("albumFilesInput").addEventListener("change", function(event) {
+      const files = event.target.files;
+      if (files.length > 0) {
+        Array.from(files).forEach(file => {
+          const fileURL = URL.createObjectURL(file);
+          albums[currentAlbumKey].images.push(fileURL);
+        });
+        // গ্যালারি রিফ্রেশ করা হবে
+        showAlbum(albums[currentAlbumKey].images);
+      }
+    });
+    
+    // মোবাইল গ্যালারি সম্পর্কিত ফাংশন
+    function openMobileGallery() {
+      document.getElementById("mobileFilesInput").click();
+    }
+    
+    document.getElementById("mobileFilesInput").addEventListener("change", function(event) {
+      const files = event.target.files;
+      if (files.length > 0) {
+        showMobileGallery(files);
+      }
+    });
+    
+    function showMobileGallery(files) {
+      const oldContainer = document.querySelector(".album-gallery-container");
+      if (oldContainer) oldContainer.remove();
+      
+      let container = document.createElement("div");
+      container.classList.add("album-gallery-container");
+      
+      let header = document.createElement("div");
+      header.classList.add("album-header");
+      header.innerHTML = `<h2>মোবাইল গ্যালারি</h2>`;
+      container.appendChild(header);
+      
+      let gallery = document.createElement("div");
+      gallery.classList.add("gallery");
+      
+      Array.from(files).forEach(file => {
+        const fileURL = URL.createObjectURL(file);
+        let mediaElem;
+        if (file.type.startsWith("image")) {
+          mediaElem = document.createElement("img");
+          mediaElem.src = fileURL;
+          mediaElem.alt = "ছবি";
+          mediaElem.onclick = () => viewMedia(fileURL, 'image');
+        } else if (file.type.startsWith("video")) {
+          mediaElem = document.createElement("video");
+          mediaElem.src = fileURL;
+          mediaElem.muted = true;
+          mediaElem.onclick = () => viewMedia(fileURL, 'video');
+        }
+        if (mediaElem) {
+          gallery.appendChild(mediaElem);
+        }
+      });
+      
+      container.appendChild(gallery);
+      document.body.appendChild(container);
+      container.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // মিডিয়া Enlarged View দেখানোর ফাংশন
+    function viewMedia(src, type) {
+      const viewer = document.getElementById("viewer");
+      const viewerImg = document.getElementById("viewerImg");
+      const viewerVideo = document.getElementById("viewerVideo");
+      
+      if (type === 'image') {
+        viewerImg.src = src;
+        viewerImg.style.display = "block";
+        viewerVideo.style.display = "none";
+        viewerVideo.pause();
+        viewerVideo.src = "";
+      } else if (type === 'video') {
+        viewerVideo.src = src;
+        viewerVideo.style.display = "block";
+        viewerImg.style.display = "none";
+        viewerVideo.play();
+      }
+      viewer.style.display = "flex";
+    }
+    
+    // Enlarged view বন্ধ করার ফাংশন
+    function closeViewer() {
+      const viewer = document.getElementById("viewer");
+      const viewerImg = document.getElementById("viewerImg");
+      const viewerVideo = document.getElementById("viewerVideo");
+      viewer.style.display = "none";
+      viewerImg.style.display = "none";
+      viewerVideo.style.display = "none";
+      viewerVideo.pause();
+      viewerImg.src = "";
+      viewerVideo.src = "";
+    }
+  </script>
+</body>
+</html>
